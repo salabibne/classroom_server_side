@@ -30,6 +30,37 @@ async function run() {
         const userCollection = client.db("ClassRoom").collection("Users");
         const teacherCollection = client.db("ClassRoom").collection("teachers");
 
+
+        // middlewares
+
+        // verify Token
+
+        const verifyToken =(req,res,next) =>{
+            if(!req.headers.authorization){
+                return res.status(401).send({message:"forbiddenAccess"})
+            }
+
+            const token = req.headers.authorization.split(' ')[1]
+            jwt.verify(token, process.env.TOKEN, function(err, decoded) {
+                if(err){
+                    return res.status(401).send({message:"not Authorized"})
+                }
+               req.decoded = decoded
+               next()
+              });
+        }
+
+        const verifyAdmin = async(req,res,next) =>{
+            const email = req.decoded.email;
+            const query = {email : email}
+            const result = await userCollection.findOne(query)
+            const isAdmin=result?.role === "admin";
+            if(!isAdmin){
+                return res.status(403).send({message:"not valid user"})
+            }
+            next()
+        }
+
         app.post("/users", async(req,res)=>{
             const users = req.body;
             const result = await userCollection.insertOne(users);
@@ -49,7 +80,7 @@ async function run() {
             const token = jwt.sign( user, process.env.TOKEN, {
                 expiresIn: "1h"
             })
-            
+
 
             res.send({token})
                 
