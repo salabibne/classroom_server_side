@@ -11,7 +11,7 @@ app.use(cors())
 app.use(express.json())
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ovwhpk1.mongodb.net/?retryWrites=true&w=majority`
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -86,6 +86,79 @@ async function run() {
                 
            
         })
+
+        app.get("/user/admin/:email", verifyToken,async(req,res)=>{
+            const email = req.params.email
+            if(email !== req.decoded.email){
+                return res.status(401).send({message:"UnAuthorized"})
+            } 
+
+            const query ={email :email};
+            const result = await userCollection.findOne(query)
+
+            let admin= false
+            if(result){
+                admin = result?.role === "admin";
+            }
+            res.send({admin})
+
+        })
+
+        app.get("/admin/techereq",  async(req,res)=>{
+            const teacherRequest = await teacherCollection.find().toArray()
+            res.send(teacherRequest)
+
+        })
+
+        app.get("/admin/users",  async(req,res)=>{
+            const userRequest = await userCollection.find().toArray()
+            res.send(userRequest)
+
+        })
+
+        app.patch("/admin/updateAccept/:id",verifyToken,verifyAdmin, async(req,res)=>{
+          
+            const acceptStatus = req.body
+            console.log(acceptStatus);
+            const id = req.params.id;
+            const filter = {_id: new ObjectId(id)};
+            const updatedStatus ={
+                $set:{
+                    status:acceptStatus.status
+
+                }
+            }
+            const options = { upsert: true };
+            const result = await teacherCollection.updateOne(filter,updatedStatus,options)
+            res.send(result)
+
+
+        })
+        app.patch("/admin/updateReject/:id",verifyToken,verifyAdmin, async(req,res)=>{
+          
+            const acceptStatus = req.body
+            console.log(acceptStatus);
+            const id = req.params.id;
+            const filter = {_id: new ObjectId(id)};
+            const updatedStatus ={
+                $set:{
+                    status:acceptStatus.status
+
+                }
+            }
+            const options = { upsert: true };
+            const result = await teacherCollection.updateOne(filter,updatedStatus,options)
+            res.send(result)
+
+
+        })
+
+        app.get("/users", verifyToken,verifyAdmin,async(req,res)=>{
+            const result = await userCollection.find().toArray();
+            res.send(result)
+
+        })
+
 
 
 
