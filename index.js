@@ -29,6 +29,7 @@ async function run() {
         await client.connect();
         const userCollection = client.db("ClassRoom").collection("Users");
         const teacherCollection = client.db("ClassRoom").collection("teachers");
+        const classCollection = client.db("ClassRoom").collection("classs");
 
 
         // middlewares
@@ -61,6 +62,18 @@ async function run() {
             next()
         }
 
+
+        const verifyTeacher = async(req,res,next)=>{
+            const email = req.decoded.email;
+            const query = {email:email};
+            const result = await teacherCollection.findOne(query)
+            const isTeacher = result?.status ==="accepted";
+            if(!isTeacher){
+                return res.status(403).send({message:"not valid User"})
+            }
+            next();
+        }
+
         app.post("/users", async(req,res)=>{
             const users = req.body;
             const result = await userCollection.insertOne(users);
@@ -70,6 +83,12 @@ async function run() {
         app.post("/teacher", async(req,res)=>{
             const teachers = req.body;
             const result = await teacherCollection.insertOne(teachers)
+            res.send(result)
+        })
+
+        app.get("/student/allclass", async(req,res)=>{
+            const query = {status:"approved"};
+            const result = await classCollection.find(query).toArray()
             res.send(result)
         })
 
@@ -102,6 +121,22 @@ async function run() {
             }
             res.send({admin})
 
+        })
+
+        app.get("/user/teacher/:email",verifyToken,async(req,res)=>{
+            const email = req.params.email;
+            if(email !== req.decoded.email){
+                return res.status(401).send({message:"UnAuthorized"})
+            }
+            const query= {email:email}
+            const result = await teacherCollection.findOne(query);
+            let teacher= false
+            if(result){
+                teacher=result?.status ==="accepted"
+                
+
+            }
+            res.send({teacher})
         })
 
         app.get("/admin/techereq",  async(req,res)=>{
@@ -157,6 +192,99 @@ async function run() {
             const result = await userCollection.find().toArray();
             res.send(result)
 
+        })
+
+
+        app.get("/admin/allclass", verifyToken,verifyAdmin, async(req,res)=>{
+            const classInformation = await classCollection.find().toArray()
+            res.send(classInformation)
+        })
+
+        app.patch("/admin/allclassaccept/:id",verifyToken,verifyAdmin, async(req,res)=>{
+          
+            const acceptStatus = req.body
+            console.log(acceptStatus);
+            const id = req.params.id;
+            const filter = {_id: new ObjectId(id)};
+            const updatedStatus ={
+                $set:{
+                    status:acceptStatus.status
+
+                }
+            }
+            const options = { upsert: true };
+            const result = await classCollection.updateOne(filter,updatedStatus,options)
+            res.send(result)
+
+
+        })
+
+        app.patch("/admin/allclassreject/:id",verifyToken,verifyAdmin, async(req,res)=>{
+          
+            const acceptStatus = req.body
+            console.log(acceptStatus);
+            const id = req.params.id;
+            const filter = {_id: new ObjectId(id)};
+            const updatedStatus ={
+                $set:{
+                    status:acceptStatus.status
+
+                }
+            }
+            const options = { upsert: true };
+            const result = await classCollection.updateOne(filter,updatedStatus,options)
+            res.send(result)
+
+
+        })
+
+        
+
+        // Adding Class related Info:
+        app.post("/teacher/addClass",verifyToken,verifyTeacher,async(req,res)=>{
+            const classes = req.body;
+            const result = await classCollection.insertOne(classes)
+            res.send(result)
+        })
+
+        app.get("/teacher/myClass/:email", verifyToken,verifyTeacher,async(req,res)=>{
+            const email = req.params.email;
+            console.log("teacher add class mail", email);
+            const query = {email:email};
+           
+
+            const findClass = await classCollection.find(query).toArray()
+            console.log(findClass);
+           
+            res.send(findClass)
+        })
+
+        app.patch("/teacher/updateClass/:email",verifyToken,verifyTeacher,async(req,res)=>{
+            const data = req.body
+            const email = req.params.email;
+            const query = {email:email}
+            const updateClass = {
+                $set :{
+                    title:data.title,
+                    name:data.name,
+                    email:data.email,
+                    description:data.description,
+                    price:data.price,
+                    image:data.image
+
+                }
+            }
+            const options = { upsert: true };
+            const result = await classCollection.updateOne(query,updateClass,options)
+            res.send(result);
+        })
+    
+        
+        app.delete("/teacher/deleteClass/:id", verifyToken,verifyTeacher, async(req,res)=>{
+            const id = req.params.id;
+            const query= {_id : new ObjectId(id)}
+            const result = await classCollection.deleteOne(query);
+            res.send(result)
         })
 
 
