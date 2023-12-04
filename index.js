@@ -30,6 +30,8 @@ async function run() {
         const userCollection = client.db("ClassRoom").collection("Users");
         const teacherCollection = client.db("ClassRoom").collection("teachers");
         const classCollection = client.db("ClassRoom").collection("classs");
+        const assignmentCollection = client.db("ClassRoom").collection("assignments");
+        const enrollCollection = client.db("ClassRoom").collection("enroll");
 
 
         // middlewares
@@ -51,6 +53,8 @@ async function run() {
               });
         }
 
+        // verifyadmin
+
         const verifyAdmin = async(req,res,next) =>{
             const email = req.decoded.email;
             const query = {email : email}
@@ -62,6 +66,7 @@ async function run() {
             next()
         }
 
+        // verifyteacher
 
         const verifyTeacher = async(req,res,next)=>{
             const email = req.decoded.email;
@@ -72,6 +77,17 @@ async function run() {
                 return res.status(403).send({message:"not valid User"})
             }
             next();
+        }
+
+        // verifyStudent
+        const verifyStudent = async(req,res,next) =>{
+            const email = req.decoded.email;
+            const query = {user:email};
+            const result = await enrollCollection.findOne(query);
+            if(!result){
+                return res.status(403).send({message:"not valid user"})
+            }
+            next()
         }
 
         app.post("/users", async(req,res)=>{
@@ -139,6 +155,20 @@ async function run() {
             res.send({teacher})
         })
 
+        app.get("/user/student/:email", verifyToken, async(req,res)=>{
+            const email = req.params.email;
+            if(email !== req.decoded.email){
+                return res.status(401).send({message:"unAuthorized"})
+            }
+            const query = {user:email}
+            const result = await enrollCollection.findOne(query);
+            let student = false
+            if(result){
+                student = true
+            }
+            res.send({student})
+        })
+
         app.get("/admin/techereq",  async(req,res)=>{
             const teacherRequest = await teacherCollection.find().toArray()
             res.send(teacherRequest)
@@ -154,7 +184,7 @@ async function run() {
         app.patch("/admin/updateAccept/:id",verifyToken,verifyAdmin, async(req,res)=>{
           
             const acceptStatus = req.body
-            console.log(acceptStatus);
+        
             const id = req.params.id;
             const filter = {_id: new ObjectId(id)};
             const updatedStatus ={
@@ -172,7 +202,7 @@ async function run() {
         app.patch("/admin/updateReject/:id",verifyToken,verifyAdmin, async(req,res)=>{
           
             const acceptStatus = req.body
-            console.log(acceptStatus);
+           
             const id = req.params.id;
             const filter = {_id: new ObjectId(id)};
             const updatedStatus ={
@@ -203,7 +233,7 @@ async function run() {
         app.patch("/admin/allclassaccept/:id",verifyToken,verifyAdmin, async(req,res)=>{
           
             const acceptStatus = req.body
-            console.log(acceptStatus);
+          
             const id = req.params.id;
             const filter = {_id: new ObjectId(id)};
             const updatedStatus ={
@@ -222,7 +252,7 @@ async function run() {
         app.patch("/admin/allclassreject/:id",verifyToken,verifyAdmin, async(req,res)=>{
           
             const acceptStatus = req.body
-            console.log(acceptStatus);
+          
             const id = req.params.id;
             const filter = {_id: new ObjectId(id)};
             const updatedStatus ={
@@ -249,12 +279,12 @@ async function run() {
 
         app.get("/teacher/myClass/:email", verifyToken,verifyTeacher,async(req,res)=>{
             const email = req.params.email;
-            console.log("teacher add class mail", email);
+           
             const query = {email:email};
            
 
             const findClass = await classCollection.find(query).toArray()
-            console.log(findClass);
+            
            
             res.send(findClass)
         })
@@ -287,7 +317,43 @@ async function run() {
             res.send(result)
         })
 
+        // asisgnments
+        app.post("/assignment" , verifyToken,verifyTeacher, async(req,res)=>{
+            const assignment = req.body;
+            const result = await assignmentCollection.insertOne(assignment)
+            res.send(result)
 
+        })
+
+        // student side 
+
+        // getting class details
+
+        app.get("/student/classDetails/:id", async(req,res)=>{
+            const id = req.params.id;
+          
+            const query= {_id : new ObjectId(id)}
+           
+            const classInformation = await classCollection.find(query).toArray();
+            res.send(classInformation)
+
+
+        })
+
+        // enrollment:
+        app.post("/student/enroll",async(req,res)=>{
+            const data = req.body;
+            const enroll = await enrollCollection.insertOne(data);
+            res.send(enroll)
+        })
+
+        // enroll class info:
+        app.get("/user/studnet/enrollclass/:email", async(req,res)=>{
+            const email = req.email;
+            const query= {user :email}
+            const enrollClass = await enrollCollection.find(query).toArray();
+            res.send(enrollClass)
+        })
 
 
 
