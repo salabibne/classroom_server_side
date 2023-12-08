@@ -1,5 +1,5 @@
 const express = require('express')
-
+// const { ObjectId } = require('mongodb');
 const app = express()
 const jwt = require('jsonwebtoken');
 const cors = require('cors')
@@ -38,287 +38,287 @@ async function run() {
 
         // verify Token
 
-        const verifyToken =(req,res,next) =>{
-            if(!req.headers.authorization){
-                return res.status(401).send({message:"forbiddenAccess"})
+        const verifyToken = (req, res, next) => {
+            if (!req.headers.authorization) {
+                return res.status(401).send({ message: "forbiddenAccess" })
             }
 
             const token = req.headers.authorization.split(' ')[1]
-            jwt.verify(token, process.env.TOKEN, function(err, decoded) {
-                if(err){
-                    return res.status(401).send({message:"not Authorized"})
+            jwt.verify(token, process.env.TOKEN, function (err, decoded) {
+                if (err) {
+                    return res.status(401).send({ message: "not Authorized" })
                 }
-               req.decoded = decoded
-               next()
-              });
+                req.decoded = decoded
+                next()
+            });
         }
 
         // verifyadmin
 
-        const verifyAdmin = async(req,res,next) =>{
+        const verifyAdmin = async (req, res, next) => {
             const email = req.decoded.email;
-            const query = {email : email}
+            const query = { email: email }
             const result = await userCollection.findOne(query)
-            const isAdmin=result?.role === "admin";
-            if(!isAdmin){
-                return res.status(403).send({message:"not valid user"})
+            const isAdmin = result?.role === "admin";
+            if (!isAdmin) {
+                return res.status(403).send({ message: "not valid user" })
             }
             next()
         }
 
         // verifyteacher
 
-        const verifyTeacher = async(req,res,next)=>{
+        const verifyTeacher = async (req, res, next) => {
             const email = req.decoded.email;
-            const query = {email:email};
+            const query = { email: email };
             const result = await teacherCollection.findOne(query)
-            const isTeacher = result?.status ==="accepted";
-            if(!isTeacher){
-                return res.status(403).send({message:"not valid User"})
+            const isTeacher = result?.status === "accepted";
+            if (!isTeacher) {
+                return res.status(403).send({ message: "not valid User" })
             }
             next();
         }
 
         // verifyStudent
-        const verifyStudent = async(req,res,next) =>{
+        const verifyStudent = async (req, res, next) => {
             const email = req.decoded.email;
-            const query = {user:email};
+            const query = { user: email };
             const result = await enrollCollection.findOne(query);
-            if(!result){
-                return res.status(403).send({message:"not valid user"})
+            if (!result) {
+                return res.status(403).send({ message: "not valid user" })
             }
             next()
         }
 
-        app.post("/users", async(req,res)=>{
+        app.post("/users", async (req, res) => {
             const users = req.body;
             const result = await userCollection.insertOne(users);
             res.send(result)
         })
 
-        app.post("/teacher", async(req,res)=>{
+        app.post("/teacher", async (req, res) => {
             const teachers = req.body;
             const result = await teacherCollection.insertOne(teachers)
             res.send(result)
         })
 
-        app.get("/student/allclass", async(req,res)=>{
-            const query = {status:"approved"};
+        app.get("/student/allclass", async (req, res) => {
+            const query = { status: "approved" };
             const result = await classCollection.find(query).toArray()
             res.send(result)
         })
 
         // jwt relqated Token
 
-        app.post("/jwt", async(req,res)=>{
+        app.post("/jwt", async (req, res) => {
             const user = req.body;
-            const token = jwt.sign( user, process.env.TOKEN, {
+            const token = jwt.sign(user, process.env.TOKEN, {
                 expiresIn: "1h"
             })
 
 
-            res.send({token})
-                
-           
+            res.send({ token })
+
+
         })
 
-        app.get("/user/admin/:email", verifyToken,async(req,res)=>{
+        app.get("/user/admin/:email", verifyToken, async (req, res) => {
             const email = req.params.email
-            if(email !== req.decoded.email){
-                return res.status(401).send({message:"UnAuthorized"})
-            } 
+            if (email !== req.decoded.email) {
+                return res.status(401).send({ message: "UnAuthorized" })
+            }
 
-            const query ={email :email};
+            const query = { email: email };
             const result = await userCollection.findOne(query)
 
-            let admin= false
-            if(result){
+            let admin = false
+            if (result) {
                 admin = result?.role === "admin";
             }
-            res.send({admin})
+            res.send({ admin })
 
         })
 
-        app.get("/user/teacher/:email",verifyToken,async(req,res)=>{
+        app.get("/user/teacher/:email", verifyToken, async (req, res) => {
             const email = req.params.email;
-            if(email !== req.decoded.email){
-                return res.status(401).send({message:"UnAuthorized"})
+            if (email !== req.decoded.email) {
+                return res.status(401).send({ message: "UnAuthorized" })
             }
-            const query= {email:email}
+            const query = { email: email }
             const result = await teacherCollection.findOne(query);
-            let teacher= false
-            if(result){
-                teacher=result?.status ==="accepted"
-                
+            let teacher = false
+            if (result) {
+                teacher = result?.status === "accepted"
+
 
             }
-            res.send({teacher})
+            res.send({ teacher })
         })
 
-        app.get("/user/student/:email", verifyToken, async(req,res)=>{
+        app.get("/user/student/:email", verifyToken, async (req, res) => {
             const email = req.params.email;
-            if(email !== req.decoded.email){
-                return res.status(401).send({message:"unAuthorized"})
+            if (email !== req.decoded.email) {
+                return res.status(401).send({ message: "unAuthorized" })
             }
-            const query = {user:email}
+            const query = { user: email }
             const result = await enrollCollection.findOne(query);
             let student = false
-            if(result){
+            if (result) {
                 student = true
             }
-            res.send({student})
+            res.send({ student })
         })
 
-        app.get("/admin/techereq",  async(req,res)=>{
+        app.get("/admin/techereq", async (req, res) => {
             const teacherRequest = await teacherCollection.find().toArray()
             res.send(teacherRequest)
 
         })
 
-        app.get("/admin/users",  async(req,res)=>{
+        app.get("/admin/users", async (req, res) => {
             const userRequest = await userCollection.find().toArray()
             res.send(userRequest)
 
         })
 
-        app.patch("/admin/updateAccept/:id",verifyToken,verifyAdmin, async(req,res)=>{
-          
+        app.patch("/admin/updateAccept/:id", verifyToken, verifyAdmin, async (req, res) => {
+
             const acceptStatus = req.body
-        
+
             const id = req.params.id;
-            const filter = {_id: new ObjectId(id)};
-            const updatedStatus ={
-                $set:{
-                    status:acceptStatus.status
+            const filter = { _id: new ObjectId(id) };
+            const updatedStatus = {
+                $set: {
+                    status: acceptStatus.status
 
                 }
             }
             const options = { upsert: true };
-            const result = await teacherCollection.updateOne(filter,updatedStatus,options)
+            const result = await teacherCollection.updateOne(filter, updatedStatus, options)
             res.send(result)
 
 
         })
-        app.patch("/admin/updateReject/:id",verifyToken,verifyAdmin, async(req,res)=>{
-          
+        app.patch("/admin/updateReject/:id", verifyToken, verifyAdmin, async (req, res) => {
+
             const acceptStatus = req.body
-           
+
             const id = req.params.id;
-            const filter = {_id: new ObjectId(id)};
-            const updatedStatus ={
-                $set:{
-                    status:acceptStatus.status
+            const filter = { _id: new ObjectId(id) };
+            const updatedStatus = {
+                $set: {
+                    status: acceptStatus.status
 
                 }
             }
             const options = { upsert: true };
-            const result = await teacherCollection.updateOne(filter,updatedStatus,options)
+            const result = await teacherCollection.updateOne(filter, updatedStatus, options)
             res.send(result)
 
 
         })
 
-        app.get("/users", verifyToken,verifyAdmin,async(req,res)=>{
+        app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
             const result = await userCollection.find().toArray();
             res.send(result)
 
         })
 
 
-        app.get("/admin/allclass", verifyToken,verifyAdmin, async(req,res)=>{
+        app.get("/admin/allclass", verifyToken, verifyAdmin, async (req, res) => {
             const classInformation = await classCollection.find().toArray()
             res.send(classInformation)
         })
 
-        app.patch("/admin/allclassaccept/:id",verifyToken,verifyAdmin, async(req,res)=>{
-          
+        app.patch("/admin/allclassaccept/:id", verifyToken, verifyAdmin, async (req, res) => {
+
             const acceptStatus = req.body
-          
+
             const id = req.params.id;
-            const filter = {_id: new ObjectId(id)};
-            const updatedStatus ={
-                $set:{
-                    status:acceptStatus.status
+            const filter = { _id: new ObjectId(id) };
+            const updatedStatus = {
+                $set: {
+                    status: acceptStatus.status
 
                 }
             }
             const options = { upsert: true };
-            const result = await classCollection.updateOne(filter,updatedStatus,options)
+            const result = await classCollection.updateOne(filter, updatedStatus, options)
             res.send(result)
 
 
         })
 
-        app.patch("/admin/allclassreject/:id",verifyToken,verifyAdmin, async(req,res)=>{
-          
+        app.patch("/admin/allclassreject/:id", verifyToken, verifyAdmin, async (req, res) => {
+
             const acceptStatus = req.body
-          
+
             const id = req.params.id;
-            const filter = {_id: new ObjectId(id)};
-            const updatedStatus ={
-                $set:{
-                    status:acceptStatus.status
+            const filter = { _id: new ObjectId(id) };
+            const updatedStatus = {
+                $set: {
+                    status: acceptStatus.status
 
                 }
             }
             const options = { upsert: true };
-            const result = await classCollection.updateOne(filter,updatedStatus,options)
+            const result = await classCollection.updateOne(filter, updatedStatus, options)
             res.send(result)
 
 
         })
 
-        
+
 
         // Adding Class related Info:
-        app.post("/teacher/addClass",verifyToken,verifyTeacher,async(req,res)=>{
+        app.post("/teacher/addClass", verifyToken, verifyTeacher, async (req, res) => {
             const classes = req.body;
             const result = await classCollection.insertOne(classes)
             res.send(result)
         })
 
-        app.get("/teacher/myClass/:email", verifyToken,verifyTeacher,async(req,res)=>{
+        app.get("/teacher/myClass/:email", verifyToken, verifyTeacher, async (req, res) => {
             const email = req.params.email;
-           
-            const query = {email:email};
-           
+
+            const query = { email: email };
+
 
             const findClass = await classCollection.find(query).toArray()
-            
-           
+
+
             res.send(findClass)
         })
 
-        app.patch("/teacher/updateClass/:email",verifyToken,verifyTeacher,async(req,res)=>{
+        app.patch("/teacher/updateClass/:email", verifyToken, verifyTeacher, async (req, res) => {
             const data = req.body
             const email = req.params.email;
-            const query = {email:email}
+            const query = { email: email }
             const updateClass = {
-                $set :{
-                    title:data.title,
-                    name:data.name,
-                    email:data.email,
-                    description:data.description,
-                    price:data.price,
-                    image:data.image
+                $set: {
+                    title: data.title,
+                    name: data.name,
+                    email: data.email,
+                    description: data.description,
+                    price: data.price,
+                    image: data.image
 
                 }
             }
             const options = { upsert: true };
-            const result = await classCollection.updateOne(query,updateClass,options)
+            const result = await classCollection.updateOne(query, updateClass, options)
             res.send(result);
         })
-    
-        
-        app.delete("/teacher/deleteClass/:id", verifyToken,verifyTeacher, async(req,res)=>{
+
+
+        app.delete("/teacher/deleteClass/:id", verifyToken, verifyTeacher, async (req, res) => {
             const id = req.params.id;
-            const query= {_id : new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await classCollection.deleteOne(query);
             res.send(result)
         })
 
         // asisgnments
-        app.post("/assignment" , verifyToken,verifyTeacher, async(req,res)=>{
+        app.post("/assignment", verifyToken, verifyTeacher, async (req, res) => {
             const assignment = req.body;
             const result = await assignmentCollection.insertOne(assignment)
             res.send(result)
@@ -329,11 +329,11 @@ async function run() {
 
         // getting class details
 
-        app.get("/student/classDetails/:id", async(req,res)=>{
+        app.get("/student/classDetails/:id", async (req, res) => {
             const id = req.params.id;
-          
-            const query= {_id : new ObjectId(id)}
-           
+
+            const query = { _id: new ObjectId(id) }
+
             const classInformation = await classCollection.find(query).toArray();
             res.send(classInformation)
 
@@ -341,18 +341,68 @@ async function run() {
         })
 
         // enrollment:
-        app.post("/student/enroll",async(req,res)=>{
+        app.post("/student/enroll", async (req, res) => {
             const data = req.body;
             const enroll = await enrollCollection.insertOne(data);
             res.send(enroll)
         })
 
         // enroll class info:
-        app.get("/user/studnet/enrollclass/:email", async(req,res)=>{
-            const email = req.email;
-            const query= {user :email}
-            const enrollClass = await enrollCollection.find(query).toArray();
-            res.send(enrollClass)
+        app.get("/user/studnet/enrollclass/:email", async (req, res) => {
+
+            const email = req.params.email;
+            console.log("enroll", email);
+
+            const result = await enrollCollection
+                .aggregate([
+                    {
+                        $addFields: {
+                            menuItemsObjectIds: {
+
+                                $convert: {
+                                    input: "$classId",
+                                    to: "objectId"
+
+                                }
+                            },
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: "classs",
+                            localField: "menuItemsObjectIds",
+                            foreignField: "_id",
+                            as: "menuItemsData",
+                        },
+                    },
+                    {
+                        $unwind: '$menuItemsData'
+                    },
+
+                    {
+                        $project: {
+                          _id:"$menuItemsData._id",
+                            title:"$menuItemsData.title",
+                            name:"$menuItemsData.name",
+                            image:"$menuItemsData.image",
+
+
+                        }
+                    }
+                ])
+                .toArray();
+
+
+            res.send(result)
+        })
+
+        // Continue Course:
+        app.get("/student/continueCourse/:id",  async(req,res)=>{
+            const classId = req.params.id;
+            const query = {classId:classId}
+            
+            const result = await assignmentCollection.find(query).toArray()
+            res.send(result)
         })
 
 
