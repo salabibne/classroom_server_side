@@ -32,6 +32,7 @@ async function run() {
         const classCollection = client.db("ClassRoom").collection("classs");
         const assignmentCollection = client.db("ClassRoom").collection("assignments");
         const enrollCollection = client.db("ClassRoom").collection("enroll");
+        const assignmentAnsCollection = client.db("ClassRoom").collection("answer");
 
 
         // middlewares
@@ -381,10 +382,10 @@ async function run() {
 
                     {
                         $project: {
-                          _id:"$menuItemsData._id",
-                            title:"$menuItemsData.title",
-                            name:"$menuItemsData.name",
-                            image:"$menuItemsData.image",
+                            _id: "$menuItemsData._id",
+                            title: "$menuItemsData.title",
+                            name: "$menuItemsData.name",
+                            image: "$menuItemsData.image",
 
 
                         }
@@ -397,15 +398,95 @@ async function run() {
         })
 
         // Continue Course:
-        app.get("/student/continueCourse/:id",  async(req,res)=>{
+        app.get("/student/continueCourse/:id", async (req, res) => {
             const classId = req.params.id;
-            const query = {classId:classId}
-            
+            const query = { classId: classId }
+
             const result = await assignmentCollection.find(query).toArray()
             res.send(result)
         })
 
+        app.get("/student/doAssignments/:id", async (req, res) => {
+            const assignmentId = req.params.id;
+            const query = { _id: new ObjectId(assignmentId) }
 
+            const result = await assignmentCollection.find(query).toArray()
+            res.send(result)
+        })
+
+        app.post("/student/submitAns", async (req, res) => {
+            const answer = req.body;
+            const result = await assignmentAnsCollection.insertOne(answer);
+            res.send(result)
+
+        })
+
+
+        // evaluate assignments by teacher:
+
+        app.get("/evaluateAssignment", async (req, res) => {
+
+            const result = await assignmentAnsCollection.aggregate([
+
+                {
+                    $addFields: {
+                        assignmentObjectIds: {
+
+                            $convert: {
+                                input: "$assignmentId",
+                                to: "objectId"
+
+                            }
+                        },
+                    },
+                },
+                {
+                    $lookup:{
+                        from:"assignments",
+                        localField:"assignmentObjectIds",
+                        foreignField:"_id",
+                        as:"assignmentFromAnswer"
+
+                    }
+                },
+                {
+                    $unwind:"$assignmentFromAnswer"
+                },
+
+                {
+                    $addFields: {
+                        classObjectIds: {
+
+                            $convert: {
+                                input: "$assignmentFromAnswer.classId",
+                                to: "objectId"
+
+                            }
+                        },
+                    },
+                },
+                {
+                    $lookup:{
+                        from:"classs",
+                        localField:"classObjectIds",
+                        foreignField:"_id",
+                        as:"classFromAssignment"
+                    }
+                },
+                {
+                    $unwind:"$classFromAssignment"
+                }
+              
+                
+                
+
+
+
+            ]).toArray()
+            
+            res.send(result)
+
+        })
 
 
 
