@@ -424,7 +424,9 @@ async function run() {
 
         // evaluate assignments by teacher:
 
-        app.get("/evaluateAssignment", async (req, res) => {
+        app.get("/evaluateAssignment/:user", async (req, res) => {
+            
+            let teacherEmail = req.params.user
 
             const result = await assignmentAnsCollection.aggregate([
 
@@ -475,6 +477,24 @@ async function run() {
                 },
                 {
                     $unwind:"$classFromAssignment"
+                },
+
+                {
+                    $match:{
+                        "classFromAssignment.email":teacherEmail
+                    }
+                },
+               
+                {
+                    $project:{
+                        
+                        classTitle:"$classFromAssignment.title",
+                        assignmentTitle:"$assignmentFromAnswer.title",
+                        answer:1,
+                        student:1
+
+                        
+                    }
                 }
               
                 
