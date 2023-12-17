@@ -421,6 +421,13 @@ async function run() {
 
         })
 
+        // app.get("/student/getMarks/:email", async(req,res)=>{
+        //     const email = req.params.email;
+        //     const query= {student:email};
+        //     const result = await assignmentAnsCollection.find(query).toArray();
+        //     res.send(result)
+        // })
+
 
         // find the assignment answer for the particular tecaher for the evaluation:
 
@@ -508,12 +515,99 @@ async function run() {
 
         })
 
+        // students get marks:
+        app.get("/assignmentMark/:user", async (req, res) => {
+            
+            let studentEmail = req.params.user;
+            console.log("assignmentmarks",studentEmail);
+
+            const result = await assignmentAnsCollection.aggregate([
+
+                {
+                    $match:{
+                        student:studentEmail
+                    }
+                },
+
+                {
+                    $addFields: {
+                        assignmentObjectIds: {
+
+                            $convert: {
+                                input: "$assignmentId",
+                                to: "objectId"
+
+                            }
+                        },
+                    },
+                },
+                {
+                    $lookup:{
+                        from:"assignments",
+                        localField:"assignmentObjectIds",
+                        foreignField:"_id",
+                        as:"assignmentFromAnswer"
+
+                    }
+                },
+                {
+                    $unwind:"$assignmentFromAnswer"
+                },
+
+                {
+                    $addFields: {
+                        classObjectIds: {
+
+                            $convert: {
+                                input: "$assignmentFromAnswer.classId",
+                                to: "objectId"
+
+                            }
+                        },
+                    },
+                },
+                {
+                    $lookup:{
+                        from:"classs",
+                        localField:"classObjectIds",
+                        foreignField:"_id",
+                        as:"classFromAssignment"
+                    }
+                },
+                {
+                    $unwind:"$classFromAssignment"
+                },
+
+                
+               
+                {
+                    $project:{
+                        
+                        classTitle:"$classFromAssignment.title",
+                        assignmentTitle:"$assignmentFromAnswer.title",
+                        assignmentMark:1
+                       
+                        
+                    }
+                }
+              
+                
+                
+
+
+
+            ]).toArray()
+            
+            res.send(result)
+
+        })
+
         
 
 
         app.patch("/marksByTeacher/:email", async(req,res)=>{
             const marks = req.body;
-            console.log(marks);
+           
             const email = req.params.email;
             const query = {student:email};
             const giveMarks = {
