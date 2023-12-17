@@ -422,7 +422,7 @@ async function run() {
         })
 
 
-        // evaluate assignments by teacher:
+        // find the assignment answer for the particular tecaher for the evaluation:
 
         app.get("/evaluateAssignment/:user", async (req, res) => {
             
@@ -506,6 +506,26 @@ async function run() {
             
             res.send(result)
 
+        })
+
+        
+
+
+        app.patch("/marksByTeacher/:email", async(req,res)=>{
+            const marks = req.body;
+            console.log(marks);
+            const email = req.params.email;
+            const query = {student:email};
+            const giveMarks = {
+                $set:{
+                    assignmentMark:marks.assignmentMarks
+
+                }
+            }
+
+            const options = {upsert:true};
+            const result= await assignmentAnsCollection.updateOne(query,giveMarks,options);
+            res.send(result);
         })
 
 
