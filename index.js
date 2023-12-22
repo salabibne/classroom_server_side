@@ -5,10 +5,14 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors')
 const port = process.env.PORT || 5000
 require('dotenv').config()
+const stripe = require("stripe")(process.env.STRIPE_PAYINTENT)
+
 
 // middlewares
 app.use(cors())
 app.use(express.json())
+
+
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -345,6 +349,7 @@ async function run() {
         app.post("/student/enroll", async (req, res) => {
             const data = req.body;
             const enroll = await enrollCollection.insertOne(data);
+            console.log("enrollPaymentForEnroll",enroll);
             res.send(enroll)
         })
 
@@ -397,6 +402,24 @@ async function run() {
             res.send(result)
         })
 
+        // payment releted:
+
+        app.post("/create-payment-intent", async (req, res) => {
+            const  {price} = req.body;
+            console.log("items",price);
+            console.log(typeof(price));
+            const amount = parseInt(price * 100);
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                payment_method_types: ["card"]
+            })
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+
+        })
+
         // Continue Course:
         app.get("/student/continueCourse/:id", async (req, res) => {
             const classId = req.params.id;
@@ -432,7 +455,7 @@ async function run() {
         // find the assignment answer for the particular tecaher for the evaluation:
 
         app.get("/evaluateAssignment/:user", async (req, res) => {
-            
+
             let teacherEmail = req.params.user
 
             const result = await assignmentAnsCollection.aggregate([
@@ -450,16 +473,16 @@ async function run() {
                     },
                 },
                 {
-                    $lookup:{
-                        from:"assignments",
-                        localField:"assignmentObjectIds",
-                        foreignField:"_id",
-                        as:"assignmentFromAnswer"
+                    $lookup: {
+                        from: "assignments",
+                        localField: "assignmentObjectIds",
+                        foreignField: "_id",
+                        as: "assignmentFromAnswer"
 
                     }
                 },
                 {
-                    $unwind:"$assignmentFromAnswer"
+                    $unwind: "$assignmentFromAnswer"
                 },
 
                 {
@@ -475,57 +498,57 @@ async function run() {
                     },
                 },
                 {
-                    $lookup:{
-                        from:"classs",
-                        localField:"classObjectIds",
-                        foreignField:"_id",
-                        as:"classFromAssignment"
+                    $lookup: {
+                        from: "classs",
+                        localField: "classObjectIds",
+                        foreignField: "_id",
+                        as: "classFromAssignment"
                     }
                 },
                 {
-                    $unwind:"$classFromAssignment"
+                    $unwind: "$classFromAssignment"
                 },
 
                 {
-                    $match:{
-                        "classFromAssignment.email":teacherEmail
+                    $match: {
+                        "classFromAssignment.email": teacherEmail
                     }
                 },
-               
-                {
-                    $project:{
-                        
-                        classTitle:"$classFromAssignment.title",
-                        assignmentTitle:"$assignmentFromAnswer.title",
-                        answer:1,
-                        student:1
 
-                        
+                {
+                    $project: {
+
+                        classTitle: "$classFromAssignment.title",
+                        assignmentTitle: "$assignmentFromAnswer.title",
+                        answer: 1,
+                        student: 1
+
+
                     }
                 }
-              
-                
-                
+
+
+
 
 
 
             ]).toArray()
-            
+
             res.send(result)
 
         })
 
         // students get marks:
         app.get("/assignmentMark/:user", async (req, res) => {
-            
+
             let studentEmail = req.params.user;
-            console.log("assignmentmarks",studentEmail);
+            console.log("assignmentmarks", studentEmail);
 
             const result = await assignmentAnsCollection.aggregate([
 
                 {
-                    $match:{
-                        student:studentEmail
+                    $match: {
+                        student: studentEmail
                     }
                 },
 
@@ -542,16 +565,16 @@ async function run() {
                     },
                 },
                 {
-                    $lookup:{
-                        from:"assignments",
-                        localField:"assignmentObjectIds",
-                        foreignField:"_id",
-                        as:"assignmentFromAnswer"
+                    $lookup: {
+                        from: "assignments",
+                        localField: "assignmentObjectIds",
+                        foreignField: "_id",
+                        as: "assignmentFromAnswer"
 
                     }
                 },
                 {
-                    $unwind:"$assignmentFromAnswer"
+                    $unwind: "$assignmentFromAnswer"
                 },
 
                 {
@@ -567,58 +590,58 @@ async function run() {
                     },
                 },
                 {
-                    $lookup:{
-                        from:"classs",
-                        localField:"classObjectIds",
-                        foreignField:"_id",
-                        as:"classFromAssignment"
+                    $lookup: {
+                        from: "classs",
+                        localField: "classObjectIds",
+                        foreignField: "_id",
+                        as: "classFromAssignment"
                     }
                 },
                 {
-                    $unwind:"$classFromAssignment"
+                    $unwind: "$classFromAssignment"
                 },
 
-                
-               
+
+
                 {
-                    $project:{
-                        
-                        classTitle:"$classFromAssignment.title",
-                        assignmentTitle:"$assignmentFromAnswer.title",
-                        assignmentMark:1
-                       
-                        
+                    $project: {
+
+                        classTitle: "$classFromAssignment.title",
+                        assignmentTitle: "$assignmentFromAnswer.title",
+                        assignmentMark: 1
+
+
                     }
                 }
-              
-                
-                
+
+
+
 
 
 
             ]).toArray()
-            
+
             res.send(result)
 
         })
 
-        
 
 
-        app.patch("/marksByTeacher/:email", async(req,res)=>{
+
+        app.patch("/marksByTeacher/:email", async (req, res) => {
             const marks = req.body;
-           
+
             const email = req.params.email;
-            const query = {student:email};
+            const query = { student: email };
             const giveMarks = {
-                $set:{
-                    assignmentMark:marks.assignmentMarks
+                $set: {
+                    assignmentMark: marks.assignmentMarks
 
                 }
             }
 
-            const options = {upsert:true};
-            const result= await assignmentAnsCollection.updateOne(query,giveMarks,options);
+            const options = { upsert: true };
+            const result = await assignmentAnsCollection.updateOne(query, giveMarks, options);
             res.send(result);
         })
 
